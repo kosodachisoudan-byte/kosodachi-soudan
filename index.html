@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>こそだち相談室</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;background:#f7f7f7;color:#222}
+main{max-width:620px;margin:auto;background:white;min-height:100vh;padding:24px 18px 90px}
+h1{font-size:25px}.muted{color:#777;font-size:13px}.card{border:1px solid #eee;border-radius:16px;padding:16px;margin:12px 0}.btn{border:0;border-radius:12px;padding:12px 15px;background:#222;color:#fff}.soft{background:#f1f1f1;color:#222}.row{display:flex;gap:8px;flex-wrap:wrap}input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:11px;margin:6px 0 12px;font:inherit}textarea{height:130px}.meta{font-size:12px;color:#888}.actions{margin-top:12px}.hidden{display:none}.notice{background:#fff5dc;padding:12px;border-radius:12px;font-size:12px;line-height:1.6}
+</style></head><body><main>
+<h1>こそだち相談室 🌱</h1><p class="muted">子どもの悩みを、ひとりで抱えない。</p>
+<div class="notice">匿名で相談できます。子どもの名前、学校名、住所、電話番号など個人を特定できる情報は書かないでください。</div>
+<section id="auth" class="card"><h2>ログイン</h2><input id="email" type="email" placeholder="メールアドレス"><input id="password" type="password" placeholder="パスワード"><div class="row"><button class="btn" onclick="signup()">新規登録</button><button class="btn soft" onclick="login()">ログイン</button></div><p id="authmsg" class="muted"></p></section>
+<section id="app" class="hidden"><div class="row"><button class="btn" onclick="loadPosts()">相談を見る</button><button class="btn soft" onclick="logout()">ログアウト</button></div>
+<div class="card"><h2>相談を投稿</h2><select id="age"><option>未就学</option><option>小学生</option><option>中学生</option><option>高校生</option></select><select id="category"><option>学校・友達</option><option>反抗期</option><option>勉強</option><option>家庭</option><option>子どもの性格</option><option>習い事</option></select><input id="title" placeholder="タイトル"><textarea id="body" placeholder="相談内容"></textarea><button class="btn" onclick="createPost()">匿名で投稿</button></div>
+<div id="posts"></div></section>
+</main>
+<script>
+const SUPABASE_URL = "https://imbhmyyiswiolayinbmf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_CXso9ATcx92_hqMnReHRrQ_PRECutV1";
+let token=null;
+function msg(s){document.getElementById("authmsg").textContent=s}
+async function api(path,opts={}){let h={"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY,...(opts.headers||{})};if(token)h.Authorization="Bearer "+token;let r=await fetch(SUPABASE_URL+path,{...opts,headers:h});let t=await r.text();let d=t?JSON.parse(t):null;if(!r.ok)throw Error(d?.message||d?.error_description||t);return d}
+async function signup(){try{let d=await api("/auth/v1/signup",{method:"POST",body:JSON.stringify({email:email.value,password:password.value})});msg("登録しました。メール確認が必要な設定の場合はメールを確認してください。");if(d.access_token){token=d.access_token;showApp();}}catch(e){msg(e.message)}}
+async function login(){try{let d=await api("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:email.value,password:password.value})});token=d.access_token;showApp();loadPosts()}catch(e){msg(e.message)}}
+function showApp(){auth.classList.add("hidden");app.classList.remove("hidden")}
+async function logout(){token=null;app.classList.add("hidden");auth.classList.remove("hidden")}
+async function loadPosts(){try{let d=await api("/rest/v1/posts?select=id,age_group,category,title,body,created_at&order=created_at.desc");posts.innerHTML=d.map(p=>`<article class="card"><div class="meta">${esc(p.age_group)} · ${esc(p.category)} · 匿名</div><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></article>`).join("")||"<p class='muted'>まだ相談はありません。</p>")}catch(e){posts.innerHTML="<p class='muted'>読み込みエラー: "+esc(e.message)+"</p>"}}
+async function createPost(){if(!token){alert("先にログインしてください");return}try{await api("/rest/v1/posts",{method:"POST",headers:{"Prefer":"return=minimal"},body:JSON.stringify({age_group:age.value,category:category.value,title:title.value,body:body.value})});title.value="";body.value="";await loadPosts();alert("匿名で投稿しました。")}catch(e){alert(e.message)}}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+</script></body></html>
